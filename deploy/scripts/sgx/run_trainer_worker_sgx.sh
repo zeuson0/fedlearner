@@ -112,6 +112,48 @@ if [[ -z "${END_CPU_SN}" ]]; then
     END_CPU_SN=3
 fi
 
+if [ -z "$CHECKPOINT_PATH" ]; then
+    CHECKPOINT_PATH="$OUTPUT_BASE_DIR/checkpoints"
+fi
+
+TEMP_PROXY_DATA_PATH="/data/data"
+TEMP_PROXY_LOAD_PATH="/data/load"
+TEMP_PROXY_CKPT_PATH="/data/ckpt"
+TEMP_PROXY_MODEL_PATH="/data/export_model"
+
+if [ -n "$HDFS_PROXY" ];then
+  source /app/deploy/scripts/sgx/hdfs_proxy.sh
+  if [[ $DATA_PATH == hdfs* ]];then
+    mkdir -p $TEMP_PROXY_DATA_PATH
+    hdfs_download $DATA_PATH $TEMP_PROXY_DATA_PATH
+    if [ $? -ne 0 ]; then
+      echo "[HDFS_PROXY] Data download failed"
+      exit 1
+    fi
+    DATA_PATH=$TEMP_PROXY_DATA_PATH
+  fi
+
+  if [[ $LOAD_CHECKPOINT_PATH == hdfs* ]];then
+    mkdir -p $TEMP_PROXY_LOAD_PATH
+    hdfs_download $LOAD_CHECKPOINT_PATH $TEMP_PROXY_LOAD_PATH
+    if [ $? -ne 0 ]; then
+      echo "[HDFS_PROXY] Checkpoint download failed"
+      exit 1
+    fi
+    LOAD_CHECKPOINT_PATH=$TEMP_PROXY_LOAD_PATH
+  fi
+
+  if [[ $CHECKPOINT_PATH == hdfs* ]];then
+    mkdir -p $TEMP_PROXY_CKPT_PATH
+    checkpoint_path=$(normalize_env_to_args "--checkpoint-path" $TEMP_PROXY_CKPT_PATH)
+  fi
+
+  if [[ $EXPORT_PATH == hdfs* ]];then
+    mkdir -p $TEMP_PROXY_MODEL_PATH
+    export_path=$(normalize_env_to_args "--export-path" $TEMP_PROXY_MODEL_PATH)
+  fi
+fi
+
 taskset -c $START_CPU_SN-$END_CPU_SN stdbuf -o0 gramine-sgx python /gramine/$ROLE/main.py --worker \
     --application-id="$APPLICATION_ID" \
     --master-addr="$MASTER_HOST:50051" \
