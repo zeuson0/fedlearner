@@ -1,25 +1,181 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index 74ea14d0fd7..a4d136beed4 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -143,3 +143,10 @@ http_archive(
+         "https://storage.googleapis.com/download.tensorflow.org/models/speech_commands_v0.01.zip",
+     ],
+ )
++
++load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
++
++grpc_deps()
++
++load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
++grpc_extra_deps()
+\ No newline at end of file
+diff --git a/tensorflow/BUILD b/tensorflow/BUILD
+index 6b86445f684..7d294fae79d 100644
+--- a/tensorflow/BUILD
++++ b/tensorflow/BUILD
+@@ -490,8 +490,8 @@ cc_library(
+     name = "grpc",
+     visibility = ["//visibility:public"],
+     deps = select({
+-        ":linux_s390x": ["@grpc//:grpc_unsecure"],
+-        "//conditions:default": ["@grpc"],
++        ":linux_s390x": ["@com_github_grpc_grpc//:grpc_unsecure"],
++        "//conditions:default": ["@com_github_grpc_grpc//:grpc"],
+     }),
+ )
+ 
+@@ -499,8 +499,8 @@ cc_library(
+     name = "grpc++",
+     visibility = ["//visibility:public"],
+     deps = select({
+-        ":linux_s390x": ["@grpc//:grpc++_unsecure"],
+-        "//conditions:default": ["@grpc//:grpc++"],
++        ":linux_s390x": ["@com_github_grpc_grpc//:grpc++_unsecure"],
++        "//conditions:default": ["@com_github_grpc_grpc//:grpc++"],
+     }),
+ )
+ 
+diff --git a/tensorflow/contrib/cmake/external/zlib.cmake b/tensorflow/contrib/cmake/external/zlib.cmake
+index 8942f3eecf0..2979649bf7f 100644
+--- a/tensorflow/contrib/cmake/external/zlib.cmake
++++ b/tensorflow/contrib/cmake/external/zlib.cmake
+@@ -27,7 +27,7 @@ if (systemlib_ZLIB)
+ else (systemlib_ZLIB)
+   include (ExternalProject)
+ 
+-  set(zlib_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/zlib_archive)
++  set(zlib_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/zlib)
+   set(ZLIB_URL https://github.com/madler/zlib)
+   set(ZLIB_BUILD ${CMAKE_CURRENT_BINARY_DIR}/zlib/src/zlib)
+   set(ZLIB_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/zlib/install)
+diff --git a/tensorflow/contrib/gdr/gdr_server_lib.cc b/tensorflow/contrib/gdr/gdr_server_lib.cc
+index c39cc0f9bce..a08cdaf9f0c 100644
+--- a/tensorflow/contrib/gdr/gdr_server_lib.cc
++++ b/tensorflow/contrib/gdr/gdr_server_lib.cc
+@@ -140,12 +140,6 @@ class GdrServerFactory : public ServerFactory {
+ class GdrServerRegistrar {
+  public:
+   GdrServerRegistrar() {
+-    gpr_allocation_functions alloc_fns;
+-    memset(&alloc_fns, 0, sizeof(alloc_fns));
+-    alloc_fns.malloc_fn = port::Malloc;
+-    alloc_fns.realloc_fn = port::Realloc;
+-    alloc_fns.free_fn = port::Free;
+-    gpr_set_allocation_functions(alloc_fns);
+     ServerFactory::Register("GDR_SERVER", new GdrServerFactory());
+   }
+ };
+diff --git a/tensorflow/contrib/mpi/mpi_server_lib.cc b/tensorflow/contrib/mpi/mpi_server_lib.cc
+index e44e10af081..012e631c9eb 100644
+--- a/tensorflow/contrib/mpi/mpi_server_lib.cc
++++ b/tensorflow/contrib/mpi/mpi_server_lib.cc
+@@ -99,11 +99,6 @@ class MPIServerFactory : public ServerFactory {
+ class MPIServerRegistrar {
+  public:
+   MPIServerRegistrar() {
+-    gpr_allocation_functions alloc_fns;
+-    alloc_fns.malloc_fn = port::Malloc;
+-    alloc_fns.realloc_fn = port::Realloc;
+-    alloc_fns.free_fn = port::Free;
+-    gpr_set_allocation_functions(alloc_fns);
+     ServerFactory::Register("MPI_SERVER", new MPIServerFactory());
+   }
+ };
+diff --git a/tensorflow/contrib/verbs/verbs_server_lib.cc b/tensorflow/contrib/verbs/verbs_server_lib.cc
+index d07fd5ae6e9..5c1d49a7ea7 100644
+--- a/tensorflow/contrib/verbs/verbs_server_lib.cc
++++ b/tensorflow/contrib/verbs/verbs_server_lib.cc
+@@ -160,11 +160,6 @@ class VerbsServerFactory : public ServerFactory {
+ class VerbsServerRegistrar {
+  public:
+   VerbsServerRegistrar() {
+-    gpr_allocation_functions alloc_fns;
+-    alloc_fns.malloc_fn = port::Malloc;
+-    alloc_fns.realloc_fn = port::Realloc;
+-    alloc_fns.free_fn = port::Free;
+-    gpr_set_allocation_functions(alloc_fns);
+     ServerFactory::Register("VERBS_SERVER", new VerbsServerFactory());
+   }
+ };
+diff --git a/tensorflow/core/BUILD b/tensorflow/core/BUILD
+index c23c1f9b396..21b36b59f8c 100644
+--- a/tensorflow/core/BUILD
++++ b/tensorflow/core/BUILD
+@@ -1954,7 +1954,7 @@ cc_library(
+         "@double_conversion//:double-conversion",
+         "@farmhash_archive//:farmhash",
+         "@nsync//:nsync_cpp",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+     alwayslink = 1,
+ )
+@@ -2491,7 +2491,7 @@ cc_library(
+                "//tensorflow/core/platform:str_util",
+                "//tensorflow/core/platform/default/build_config:platformlib",
+                "@snappy",
+-               "@zlib_archive//:zlib",
++               "@zlib",
+                "@double_conversion//:double-conversion",
+                "@com_google_protobuf//:protobuf",
+            ] + tf_protos_all_impl() + tf_protos_grappler_impl() +
+@@ -2580,7 +2580,7 @@ cc_library(
+         "//tensorflow/core/platform/default/build_config:png",
+         "@com_google_absl//absl/base",
+         "@com_google_absl//absl/strings",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+ 
+@@ -3806,7 +3806,7 @@ tf_cc_tests(
+         "//third_party/eigen3",
+         "@com_google_absl//absl/strings",
+         "@com_google_absl//absl/synchronization",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+ 
+diff --git a/tensorflow/core/debug/BUILD b/tensorflow/core/debug/BUILD
+index 462b447a019..bd3246e5ea0 100644
+--- a/tensorflow/core/debug/BUILD
++++ b/tensorflow/core/debug/BUILD
+@@ -36,7 +36,7 @@ package(
+ # Check that tensorflow/core:tensorflow does not depend on grpc.
+ check_deps(
+     name = "core_tensorflow_check_deps",
+-    disallowed_deps = ["@grpc//:grpc++"],
++    disallowed_deps = ["@com_github_grpc_grpc//:grpc++"],
+     deps = ["//tensorflow/core:tensorflow"],
+ )
+ 
 diff --git a/tensorflow/core/distributed_runtime/rpc/BUILD b/tensorflow/core/distributed_runtime/rpc/BUILD
-index ce1a20a5ae9..23f329096ca 100644
+index 50b381b2622..cb46cf2ab0c 100644
 --- a/tensorflow/core/distributed_runtime/rpc/BUILD
 +++ b/tensorflow/core/distributed_runtime/rpc/BUILD
-@@ -41,9 +41,9 @@ filegroup(
+@@ -37,8 +37,9 @@ filegroup(
  
  cc_library(
      name = "grpc_util",
 -    srcs = ["grpc_util.cc"],
 -    hdrs = ["grpc_util.h"],
--    linkopts = if_windows(["-DEFAULTLIB:ws2_32.lib"]),
 +    srcs = ["grpc_util.cc", "grpc_sgx_ra_tls_utils.cc", "grpc_sgx_ra_tls_server.cc", "grpc_sgx_ra_tls_client.cc", "grpc_sgx_credentials_provider.cc"],
 +    hdrs = ["grpc_util.h", "grpc_sgx_ra_tls.h", "grpc_sgx_ra_tls_utils.h", "grpc_sgx_credentials_provider.h"],
 +    linkopts = ["-L/usr/local/lib", "-l:libmbedx509_gramine.a", "-l:libmbedcrypto_gramine.a", "-l:libcjson.a", "-l:libcjson_utils.a"],
      deps = [
-         "//tensorflow/core:lib",
-         # Required to be able to overload TensorResponse parsing.
+         "//tensorflow:grpc",
+         "//tensorflow:grpc++",
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-index 985b0454837..2d2b6d68003 100644
+index f70d60891cc..8905cf5319e 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_channel.cc
-@@ -143,8 +143,9 @@ Status NewHostPortGrpcChannel(const string& target,
+@@ -101,8 +101,9 @@ Status NewHostPortGrpcChannel(const string& target,
    TF_RETURN_IF_ERROR(ValidateHostPortPair(target));
  
    ::grpc::ChannelArguments args = GetChannelArguments(rpc_options);
@@ -31,7 +187,7 @@ index 985b0454837..2d2b6d68003 100644
  }
  
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc b/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
-index bcb98baaeb9..6a3d5b6031c 100644
+index 8be6f1d6994..a17e4bf4eb2 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_rpc_factory.cc
 @@ -161,7 +161,7 @@ GrpcRPCFactory::ChannelPtr GrpcRPCFactory::CreateChannelForAddress(
@@ -44,10 +200,10 @@ index bcb98baaeb9..6a3d5b6031c 100644
  
  void GrpcRPCFactory::CreateCall(const Tensor& request_t, const bool try_rpc,
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc b/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
-index fb925e51497..2dbe6b3ba32 100644
+index c8eeaa9ddef..5e04644b6bc 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc
-@@ -506,7 +506,7 @@ const string GrpcServer::target() const {
+@@ -423,7 +423,7 @@ const string GrpcServer::target() const {
  
  std::shared_ptr<::grpc::ServerCredentials> GrpcServer::GetServerCredentials(
      const ServerDef& server_def) const {
@@ -56,8 +212,21 @@ index fb925e51497..2dbe6b3ba32 100644
  }
  
  ChannelCreationFunction GrpcServer::GetChannelCreationFunction() const {
+@@ -487,12 +487,6 @@ class GrpcServerFactory : public ServerFactory {
+ class GrpcServerRegistrar {
+  public:
+   GrpcServerRegistrar() {
+-    gpr_allocation_functions alloc_fns;
+-    memset(&alloc_fns, 0, sizeof(alloc_fns));
+-    alloc_fns.malloc_fn = port::Malloc;
+-    alloc_fns.realloc_fn = port::Realloc;
+-    alloc_fns.free_fn = port::Free;
+-    gpr_set_allocation_functions(alloc_fns);
+     ServerFactory::Register("GRPC_SERVER", new GrpcServerFactory());
+   }
+ };
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
-index 98e05b64aad..3d802241a5b 100644
+index 471e2c16b34..c03b1c28710 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.cc
 @@ -16,6 +16,7 @@ limitations under the License.
@@ -68,7 +237,7 @@ index 98e05b64aad..3d802241a5b 100644
  
  namespace tensorflow {
  
-@@ -128,4 +129,29 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, tstring* dst) {
+@@ -114,4 +115,29 @@ bool GrpcMaybeParseProto(grpc::ByteBuffer* src, string* dst) {
    return true;
  }
  
@@ -99,37 +268,267 @@ index 98e05b64aad..3d802241a5b 100644
 +}
  }  // namespace tensorflow
 diff --git a/tensorflow/core/distributed_runtime/rpc/grpc_util.h b/tensorflow/core/distributed_runtime/rpc/grpc_util.h
-index aed798217cb..aa70e94971a 100644
+index 976f3e6452a..43462520161 100644
 --- a/tensorflow/core/distributed_runtime/rpc/grpc_util.h
 +++ b/tensorflow/core/distributed_runtime/rpc/grpc_util.h
-@@ -133,7 +133,9 @@ bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, string* dst);
+@@ -131,6 +131,10 @@ bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, TensorResponse* dst);
+ // Copy grpc buffer src to string *dst.
+ bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, string* dst);
  
- // Copy grpc buffer src to tstring *dst.
- bool GrpcMaybeParseProto(::grpc::ByteBuffer* src, tstring* dst);
 +std::shared_ptr<::grpc::ServerCredentials> GetCredentials();
- 
++ 
 +std::shared_ptr<::grpc::ChannelCredentials> GetChannelCredentials();
++
  }  // namespace tensorflow
  
  #endif  // TENSORFLOW_CORE_DISTRIBUTED_RUNTIME_RPC_GRPC_UTIL_H_
+diff --git a/tensorflow/core/platform/default/build_config/BUILD b/tensorflow/core/platform/default/build_config/BUILD
+index 4f96be29ae6..24c8d16edcd 100644
+--- a/tensorflow/core/platform/default/build_config/BUILD
++++ b/tensorflow/core/platform/default/build_config/BUILD
+@@ -200,7 +200,7 @@ cc_library(
+         "@farmhash_archive//:farmhash",
+         "@fft2d",
+         "@highwayhash//:sip_hash",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+ 
+@@ -230,7 +230,7 @@ cc_library(
+     copts = tf_copts(),
+     deps = [
+         "@png_archive//:png",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+ 
+diff --git a/tensorflow/tools/lib_package/BUILD b/tensorflow/tools/lib_package/BUILD
+index f7b9255092f..71f6cc6d659 100644
+--- a/tensorflow/tools/lib_package/BUILD
++++ b/tensorflow/tools/lib_package/BUILD
+@@ -162,7 +162,7 @@ genrule(
+         "@png_archive//:LICENSE",
+         "@com_google_protobuf//:LICENSE",
+         "@snappy//:COPYING",
+-        "@zlib_archive//:zlib.h",
++        "@zlib//:zlib.h",
+     ] + select({
+         "//tensorflow:android": [],
+         "//tensorflow:ios": [],
+@@ -195,8 +195,8 @@ genrule(
+     ]) + if_not_system_lib(
+         "grpc",
+         [
+-            "@grpc//:LICENSE",
+-            "@grpc//third_party/address_sorting:LICENSE",
++            "@com_github_grpc_grpc//:LICENSE",
++            "@com_github_grpc_grpc//third_party/address_sorting:LICENSE",
+         ],
+     ) + if_rocm([
+         "@rocprim_archive//:LICENSE.txt",
+@@ -234,9 +234,9 @@ genrule(
+         "@png_archive//:LICENSE",
+         "@com_google_protobuf//:LICENSE",
+         "@snappy//:COPYING",
+-        "@zlib_archive//:zlib.h",
+-        "@grpc//:LICENSE",
+-        "@grpc//third_party/address_sorting:LICENSE",
++        "@zlib//:zlib.h",
++        "@com_github_grpc_grpc//:LICENSE",
++        "@com_github_grpc_grpc//third_party/address_sorting:LICENSE",
+     ] + select({
+         "//tensorflow:android": [],
+         "//tensorflow:ios": [],
+diff --git a/tensorflow/tools/pip_package/BUILD b/tensorflow/tools/pip_package/BUILD
+index 1573618f7c3..241b53c04d6 100644
+--- a/tensorflow/tools/pip_package/BUILD
++++ b/tensorflow/tools/pip_package/BUILD
+@@ -163,7 +163,7 @@ filegroup(
+         "@snappy//:COPYING",
+         "@swig//:LICENSE",
+         "@termcolor_archive//:COPYING.txt",
+-        "@zlib_archive//:zlib.h",
++        "@zlib//:zlib.h",
+         "@org_python_pypi_backports_weakref//:LICENSE",
+     ] + select({
+         "//tensorflow:android": [],
+@@ -216,8 +216,8 @@ filegroup(
+     ) + if_not_system_lib(
+         "grpc",
+         [
+-            "@grpc//:LICENSE",
+-            "@grpc//third_party/address_sorting:LICENSE",
++            "@com_github_grpc_grpc//:LICENSE",
++            "@com_github_grpc_grpc//third_party/address_sorting:LICENSE",
+         ],
+     ) + if_ngraph([
+         "@ngraph//:LICENSE",
+diff --git a/tensorflow/workspace.bzl b/tensorflow/workspace.bzl
+index 0616aa91fa6..d7b65a9e329 100755
+--- a/tensorflow/workspace.bzl
++++ b/tensorflow/workspace.bzl
+@@ -416,28 +416,19 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
+         },
+     )
+ 
+-    # 310ba5ee72661c081129eb878c1bbcec936b20f0 is based on 3.8.0 with a fix for protobuf.bzl.
+-    PROTOBUF_URLS = [
+-        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/protocolbuffers/protobuf/archive/310ba5ee72661c081129eb878c1bbcec936b20f0.tar.gz",
+-        "https://github.com/protocolbuffers/protobuf/archive/310ba5ee72661c081129eb878c1bbcec936b20f0.tar.gz",
+-    ]
+-    PROTOBUF_SHA256 = "b9e92f9af8819bbbc514e2902aec860415b70209f31dfc8c4fa72515a5df9d59"
+-    PROTOBUF_STRIP_PREFIX = "protobuf-310ba5ee72661c081129eb878c1bbcec936b20f0"
+-
+-    # protobuf depends on @zlib, it has to be renamed to @zlib_archive because "zlib" is already
+-    # defined using bind for grpc.
+-    PROTOBUF_PATCH = "//third_party/protobuf:protobuf.patch"
+-
+     tf_http_archive(
+         name = "com_google_protobuf",
+-        patch_file = clean_dep(PROTOBUF_PATCH),
+-        sha256 = PROTOBUF_SHA256,
+-        strip_prefix = PROTOBUF_STRIP_PREFIX,
++        patch_file = clean_dep("//third_party/protobuf:protobuf.patch"),
++        sha256 = "cfcba2df10feec52a84208693937c17a4b5df7775e1635c1e3baffc487b24c9b",
++        strip_prefix = "protobuf-3.9.2",
+         system_build_file = clean_dep("//third_party/systemlibs:protobuf.BUILD"),
+         system_link_files = {
+             "//third_party/systemlibs:protobuf.bzl": "protobuf.bzl",
+         },
+-        urls = PROTOBUF_URLS,
++        urls = [
++            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/protocolbuffers/protobuf/archive/v3.9.2.zip",
++            "https://github.com/protocolbuffers/protobuf/archive/v3.9.2.zip",
++        ],
+     )
+ 
+     tf_http_archive(
+@@ -508,22 +499,40 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
+         ],
+     )
+ 
+-    # WARNING: make sure ncteisen@ and vpai@ are cc-ed on any CL to change the below rule
++    # tf_http_archive(
++    #     name = "upb",
++    #     sha256 = "a350d94b60968e298d1412df51c1ff7d5190dd13edb17b1e0766ac369c174009",
++    #     build_file = "@com_github_grpc_grpc//third_party:upb.BUILD",
++    #     strip_prefix = "upb-e7430e66d6e51def2a88f0b66fdab62b0d9492c1",
++    #     urls = [
++    #         "https://storage.googleapis.com/mirror.tensorflow.org/github.com//upb/archive/e7430e66d6e51def2a88f0b66fdab62b0d9492c1.tar.gz",
++    #         "https://github.com/protocolbuffers/upb/archive/e7430e66d6e51def2a88f0b66fdab62b0d9492c1.tar.gz",
++    #     ],
++    # )
++
++    # WARNING: make sure ncteisen@ and vpai@ are cc-ed on any CL to change the below rule    
+     tf_http_archive(
+-        name = "grpc",
+-        sha256 = "67a6c26db56f345f7cee846e681db2c23f919eba46dd639b09462d1b6203d28c",
+-        strip_prefix = "grpc-4566c2a29ebec0835643b972eb99f4306c4234a3",
++        name = "com_github_grpc_grpc",
++        sha256 = "b956598d8cbe168b5ee717b5dafa56563eb5201a947856a6688bbeac9cac4e1f",
++        strip_prefix = "grpc-b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd",
+         system_build_file = clean_dep("//third_party/systemlibs:grpc.BUILD"),
++        patch_file = clean_dep("//third_party/grpc:generate_cc_env_fix.patch"),
++        system_link_files = {
++            "//third_party/systemlibs:BUILD": "bazel/BUILD",
++            "//third_party/systemlibs:grpc.BUILD": "src/compiler/BUILD",
++            "//third_party/systemlibs:grpc.bazel.grpc_deps.bzl": "bazel/grpc_deps.bzl",
++            "//third_party/systemlibs:grpc.bazel.grpc_extra_deps.bzl": "bazel/grpc_extra_deps.bzl"
++        },
+         urls = [
+-            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/4566c2a29ebec0835643b972eb99f4306c4234a3.tar.gz",
+-            "https://github.com/grpc/grpc/archive/4566c2a29ebec0835643b972eb99f4306c4234a3.tar.gz",
++            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
++            "https://github.com/grpc/grpc/archive/b54a5b338637f92bfcf4b0bc05e0f57a5fd8fadd.tar.gz",
+         ],
+     )
+ 
+     tf_http_archive(
+         name = "com_github_nanopb_nanopb",
+         sha256 = "8bbbb1e78d4ddb0a1919276924ab10d11b631df48b657d960e0c795a25515735",
+-        build_file = "@grpc//third_party:nanopb.BUILD",
++        build_file = "@com_github_grpc_grpc//third_party:nanopb.BUILD",
+         strip_prefix = "nanopb-f8ac463766281625ad710900479130c7fcb4d63b",
+         urls = [
+             "https://storage.googleapis.com/mirror.tensorflow.org/github.com/nanopb/nanopb/archive/f8ac463766281625ad710900479130c7fcb4d63b.tar.gz",
+@@ -591,7 +600,7 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
+     )
+ 
+     tf_http_archive(
+-        name = "zlib_archive",
++        name = "zlib",
+         build_file = clean_dep("//third_party:zlib.BUILD"),
+         sha256 = "c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1",
+         strip_prefix = "zlib-1.2.11",
+@@ -964,21 +973,21 @@ def tf_bind():
+     # Needed by Protobuf
+     native.bind(
+         name = "grpc_cpp_plugin",
+-        actual = "@grpc//:grpc_cpp_plugin",
++        actual = "@com_github_grpc_grpc//src/compiler:grpc_cpp_plugin",
+     )
+     native.bind(
+         name = "grpc_python_plugin",
+-        actual = "@grpc//:grpc_python_plugin",
++        actual = "@com_github_grpc_grpc//src/compiler:grpc_python_plugin",
+     )
+ 
+     native.bind(
+         name = "grpc_lib",
+-        actual = "@grpc//:grpc++",
++        actual = "@com_github_grpc_grpc//:grpc++",
+     )
+ 
+     native.bind(
+         name = "grpc_lib_unsecure",
+-        actual = "@grpc//:grpc++_unsecure",
++        actual = "@com_github_grpc_grpc//:grpc++_unsecure",
+     )
+ 
+     # Needed by gRPC
+@@ -1023,9 +1032,3 @@ def tf_bind():
+         name = "six",
+         actual = "@six_archive//:six",
+     )
+-
+-    # Needed by gRPC
+-    native.bind(
+-        name = "zlib",
+-        actual = "@zlib_archive//:zlib",
+-    )
+diff --git a/third_party/curl.BUILD b/third_party/curl.BUILD
+index 2813b980d47..a19fb0900d5 100644
+--- a/third_party/curl.BUILD
++++ b/third_party/curl.BUILD
+@@ -322,7 +322,7 @@ cc_library(
+     }),
+     visibility = ["//visibility:public"],
+     deps = [
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ] + select({
+         "@org_tensorflow//tensorflow:ios": [],
+         "@org_tensorflow//tensorflow:windows": [],
 diff --git a/third_party/grpc/generate_cc_env_fix.patch b/third_party/grpc/generate_cc_env_fix.patch
-index 51832fe9628..4be9e293263 100644
---- a/third_party/grpc/generate_cc_env_fix.patch
+new file mode 100644
+index 00000000000..4be9e293263
+--- /dev/null
 +++ b/third_party/grpc/generate_cc_env_fix.patch
-@@ -1,6 +1,8 @@
+@@ -0,0 +1,81 @@
 +diff --git a/bazel/generate_cc.bzl b/bazel/generate_cc.bzl
 +index 484959ebb7..81d52fd28f 100644
- --- a/bazel/generate_cc.bzl
- +++ b/bazel/generate_cc.bzl
--@@ -141,6 +141,7 @@ def generate_cc_impl(ctx):
++--- a/bazel/generate_cc.bzl
+++++ b/bazel/generate_cc.bzl
 +@@ -140,6 +140,7 @@ def generate_cc_impl(ctx):
-          outputs = out_files,
-          executable = ctx.executable._protoc,
-          arguments = arguments,
-@@ -8,3 +10,72 @@
-      )
- 
-      return struct(files = depset(out_files))
++         outputs = out_files,
++         executable = ctx.executable._protoc,
++         arguments = arguments,
+++        use_default_shell_env = True,
++     )
++
++     return struct(files = depset(out_files))
 +diff --git a/src/core/lib/security/credentials/tls/tls_credentials.cc b/src/core/lib/security/credentials/tls/tls_credentials.cc
 +index 701fd3b150..0826d05933 100644
 +--- a/src/core/lib/security/credentials/tls/tls_credentials.cc
@@ -199,3 +598,365 @@ index 51832fe9628..4be9e293263 100644
 +   grpc_security_status status = GRPC_SECURITY_ERROR;
 +   tsi_peer peer = grpc_shallow_peer_from_ssl_auth_context(auth_context);
 +   if (grpc_ssl_host_matches_name(&peer, host)) status = GRPC_SECURITY_OK;
+diff --git a/third_party/kafka/BUILD b/third_party/kafka/BUILD
+index 11ec50069a3..82f7c935989 100644
+--- a/third_party/kafka/BUILD
++++ b/third_party/kafka/BUILD
+@@ -175,6 +175,6 @@ cc_library(
+     visibility = ["//visibility:public"],
+     deps = [
+         "@boringssl//:ssl",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+diff --git a/third_party/llvm/llvm.autogenerated.BUILD b/third_party/llvm/llvm.autogenerated.BUILD
+index 32705321ea1..3d39a61ab2e 100644
+--- a/third_party/llvm/llvm.autogenerated.BUILD
++++ b/third_party/llvm/llvm.autogenerated.BUILD
+@@ -3404,7 +3404,7 @@ cc_library(
+     deps = [
+         ":config",
+         ":demangle",
+-        "@zlib_archive//:zlib",
++        "@zlib",
+     ],
+ )
+ 
+diff --git a/third_party/png.BUILD b/third_party/png.BUILD
+index e82948648e4..719d4c7c670 100644
+--- a/third_party/png.BUILD
++++ b/third_party/png.BUILD
+@@ -54,7 +54,7 @@ cc_library(
+         "//conditions:default": ["-lm"],
+     }),
+     visibility = ["//visibility:public"],
+-    deps = ["@zlib_archive//:zlib"],
++    deps = ["@zlib"],
+ )
+ 
+ genrule(
+diff --git a/third_party/protobuf/protobuf.patch b/third_party/protobuf/protobuf.patch
+index df0648563dc..8a8df40b218 100644
+--- a/third_party/protobuf/protobuf.patch
++++ b/third_party/protobuf/protobuf.patch
+@@ -1,22 +1,43 @@
+ diff --git a/BUILD b/BUILD
+-index 2fb26050..c2744d5b 100644
++index dbae719ff..87dc38470 100644
+ --- a/BUILD
+ +++ b/BUILD
+-@@ -19,7 +19,7 @@ config_setting(
++@@ -23,7 +23,7 @@ config_setting(
+  # ZLIB configuration
+  ################################################################################
+- 
++
+ -ZLIB_DEPS = ["@zlib//:zlib"]
+-+ZLIB_DEPS = ["@zlib_archive//:zlib"]
+- 
+++ZLIB_DEPS = ["@zlib"]
++
+  ################################################################################
+  # Protobuf Runtime Library
+-@@ -218,7 +218,7 @@ cc_library(
+- # TODO(keveman): Remove this target once the support gets added to Bazel.
+- cc_library(
+-     name = "protobuf_headers",
+--    hdrs = glob(["src/**/*.h"]),
+-+    hdrs = glob(["src/**/*.h", "src/**/*.inc"]),
++@@ -143,6 +143,7 @@ cc_library(
++     copts = COPTS,
+      includes = ["src/"],
++     linkopts = LINK_OPTS,
+++    alwayslink = 1,
+      visibility = ["//visibility:public"],
+  )
++
++@@ -213,6 +214,7 @@ cc_library(
++     copts = COPTS,
++     includes = ["src/"],
++     linkopts = LINK_OPTS,
+++    alwayslink = 1,
++     visibility = ["//visibility:public"],
++     deps = [":protobuf_lite"] + PROTOBUF_DEPS,
++ )
++diff --git a/protobuf.bzl b/protobuf.bzl
++index e0653321f..253d9cbb5 100644
++--- a/protobuf.bzl
+++++ b/protobuf.bzl
++@@ -84,7 +84,9 @@ def _proto_gen_impl(ctx):
++
++     for dep in ctx.attr.deps:
++         import_flags += dep.proto.import_flags
++         deps += dep.proto.deps
+++    import_flags = depset(import_flags).to_list()
+++    deps = depset(deps).to_list()
++
++     if not ctx.attr.gen_cc and not ctx.attr.gen_py and not ctx.executable.plugin:
++         return struct(
+diff --git a/third_party/systemlibs/grpc.BUILD b/third_party/systemlibs/grpc.BUILD
+index fd90eb0dd3d..8b703f11556 100644
+--- a/third_party/systemlibs/grpc.BUILD
++++ b/third_party/systemlibs/grpc.BUILD
+@@ -7,25 +7,47 @@ filegroup(
+ 
+ cc_library(
+     name = "grpc",
+-    linkopts = ["-lgrpc"],
++    linkopts = [
++        "-lgrpc",
++        "-lgpr",
++    ],
+     visibility = ["//visibility:public"],
+ )
+ 
+ cc_library(
+     name = "grpc++",
+-    linkopts = ["-lgrpc++"],
++    linkopts = [
++        "-lgrpc++",
++        "-lgpr",
++    ],
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "grpc++_public_hdrs",
++    visibility = ["//visibility:public"],
++)
++
++cc_library(
++    name = "grpc++_codegen_proto",
+     visibility = ["//visibility:public"],
+ )
+ 
+ cc_library(
+     name = "grpc_unsecure",
+-    linkopts = ["-lgrpc_unsecure"],
++    linkopts = [
++        "-lgrpc_unsecure",
++        "-lgpr",
++    ],
+     visibility = ["//visibility:public"],
+ )
+ 
+ cc_library(
+     name = "grpc++_unsecure",
+-    linkopts = ["-lgrpc++_unsecure"],
++    linkopts = [
++        "-lgrpc++_unsecure",
++        "-lgpr",
++    ],
+     visibility = ["//visibility:public"],
+ )
+ 
+diff --git a/third_party/systemlibs/grpc.bazel.grpc_deps.bzl b/third_party/systemlibs/grpc.bazel.grpc_deps.bzl
+new file mode 100644
+index 00000000000..dd389c68550
+--- /dev/null
++++ b/third_party/systemlibs/grpc.bazel.grpc_deps.bzl
+@@ -0,0 +1,6 @@
++"""Load dependencies needed to compile and test the grpc library as a 3rd-party consumer."""
++
++def grpc_deps():
++    """Loads dependencies need to compile and test the grpc library."""
++
++    pass
+diff --git a/third_party/systemlibs/grpc.bazel.grpc_extra_deps.bzl b/third_party/systemlibs/grpc.bazel.grpc_extra_deps.bzl
+new file mode 100644
+index 00000000000..631c93af047
+--- /dev/null
++++ b/third_party/systemlibs/grpc.bazel.grpc_extra_deps.bzl
+@@ -0,0 +1,4 @@
++"""Stub version of @com_github_grpc_grpc//bazel:grpc_extra_deps.bzl necessary for TF system libs"""
++
++def grpc_extra_deps():
++    pass
+diff --git a/third_party/systemlibs/protobuf.BUILD b/third_party/systemlibs/protobuf.BUILD
+index 89a3f8c3fa7..62fa5d6da34 100644
+--- a/third_party/systemlibs/protobuf.BUILD
++++ b/third_party/systemlibs/protobuf.BUILD
+@@ -1,8 +1,8 @@
+ load(
+     "@com_google_protobuf//:protobuf.bzl",
++    "cc_proto_library",
+     "proto_gen",
+     "py_proto_library",
+-    "cc_proto_library",
+ )
+ 
+ licenses(["notice"])
+@@ -12,58 +12,45 @@ filegroup(
+     visibility = ["//visibility:public"],
+ )
+ 
+-HEADERS = [
+-    "google/protobuf/any.pb.h",
+-    "google/protobuf/any.proto",
+-    "google/protobuf/arena.h",
+-    "google/protobuf/compiler/importer.h",
+-    "google/protobuf/descriptor.h",
+-    "google/protobuf/descriptor.pb.h",
+-    "google/protobuf/descriptor.proto",
+-    "google/protobuf/duration.pb.h",
+-    "google/protobuf/duration.proto",
+-    "google/protobuf/dynamic_message.h",
+-    "google/protobuf/empty.pb.h",
+-    "google/protobuf/empty.proto",
+-    "google/protobuf/field_mask.pb.h",
+-    "google/protobuf/field_mask.proto",
+-    "google/protobuf/io/coded_stream.h",
+-    "google/protobuf/io/zero_copy_stream.h",
+-    "google/protobuf/io/zero_copy_stream_impl_lite.h",
+-    "google/protobuf/map.h",
+-    "google/protobuf/port_def.inc",
+-    "google/protobuf/repeated_field.h",
+-    "google/protobuf/text_format.h",
+-    "google/protobuf/timestamp.pb.h",
+-    "google/protobuf/timestamp.proto",
+-    "google/protobuf/util/json_util.h",
+-    "google/protobuf/util/type_resolver_util.h",
+-    "google/protobuf/wrappers.pb.h",
+-    "google/protobuf/wrappers.proto",
+-]
++# Map of all well known protos.
++# name => (include path, imports)
++WELL_KNOWN_PROTO_MAP = {
++    "any" : ("google/protobuf/any.proto", []),
++    "api" : ("google/protobuf/api.proto", ["source_context", "type"]),
++    "compiler_plugin" : ("google/protobuf/compiler/plugin.proto", ["descriptor"]),
++    "descriptor" : ("google/protobuf/descriptor.proto", []),
++    "duration" : ("google/protobuf/duration.proto", []),
++    "empty" : ("google/protobuf/empty.proto", []),
++    "field_mask" : ("google/protobuf/field_mask.proto", []),
++    "source_context" : ("google/protobuf/source_context.proto", []),
++    "struct" : ("google/protobuf/struct.proto", []),
++    "timestamp" : ("google/protobuf/timestamp.proto", []),
++    "type" : ("google/protobuf/type.proto", ["any", "source_context"]),
++    "wrappers" : ("google/protobuf/wrappers.proto", []),
++}
++
++RELATIVE_WELL_KNOWN_PROTOS = [proto[1][0] for proto in WELL_KNOWN_PROTO_MAP.items()]
+ 
+ genrule(
+-    name = "link_headers",
+-    outs = HEADERS,
++    name = "link_proto_files",
++    outs = RELATIVE_WELL_KNOWN_PROTOS,
+     cmd = """
+       for i in $(OUTS); do
+         f=$${i#$(@D)/}
+         mkdir -p $(@D)/$${f%/*}
+-        ln -sf $(INCLUDEDIR)/$$f $(@D)/$$f
++        ln -sf $(PROTOBUF_INCLUDE_PATH)/$$f $(@D)/$$f
+       done
+     """,
+ )
+ 
+ cc_library(
+     name = "protobuf",
+-    hdrs = HEADERS,
+     linkopts = ["-lprotobuf"],
+     visibility = ["//visibility:public"],
+ )
+ 
+ cc_library(
+     name = "protobuf_headers",
+-    hdrs = HEADERS,
+     linkopts = ["-lprotobuf"],
+     visibility = ["//visibility:public"],
+ )
+@@ -84,7 +71,6 @@ genrule(
+ 
+ cc_proto_library(
+     name = "cc_wkt_protos",
+-    hdrs = HEADERS,
+     internal_bootstrap_hack = 1,
+     protoc = ":protoc",
+     visibility = ["//visibility:public"],
+@@ -99,7 +85,13 @@ proto_gen(
+ 
+ py_library(
+     name = "protobuf_python",
+-    data = [":link_headers"],
+     srcs_version = "PY2AND3",
+     visibility = ["//visibility:public"],
+ )
++
++[proto_library(
++    name = proto[0] + "_proto",
++    srcs = [proto[1][0]],
++    deps = [dep + "_proto" for dep in proto[1][1]],
++    visibility = ["//visibility:public"],
++    ) for proto in WELL_KNOWN_PROTO_MAP.items()]
+diff --git a/third_party/systemlibs/protobuf.bzl b/third_party/systemlibs/protobuf.bzl
+index 774514f3fd9..367ac286395 100644
+--- a/third_party/systemlibs/protobuf.bzl
++++ b/third_party/systemlibs/protobuf.bzl
+@@ -83,6 +83,8 @@ def _proto_gen_impl(ctx):
+     for dep in ctx.attr.deps:
+         import_flags += dep.proto.import_flags
+         deps += dep.proto.deps
++    import_flags = depset(import_flags).to_list()
++    deps = depset(deps).to_list()
+ 
+     args = []
+     if ctx.attr.gen_cc:
+@@ -91,6 +93,7 @@ def _proto_gen_impl(ctx):
+         args += ["--python_out=" + gen_dir]
+ 
+     inputs = srcs + deps
++    tools = [ctx.executable.protoc]
+     if ctx.executable.plugin:
+         plugin = ctx.executable.plugin
+         lang = ctx.attr.plugin_language
+@@ -104,7 +107,7 @@ def _proto_gen_impl(ctx):
+             outdir = ",".join(ctx.attr.plugin_options) + ":" + outdir
+         args += ["--plugin=protoc-gen-%s=%s" % (lang, plugin.path)]
+         args += ["--%s_out=%s" % (lang, outdir)]
+-        inputs += [plugin]
++        tools.append(plugin)
+ 
+     if args:
+         ctx.actions.run(
+@@ -113,6 +116,7 @@ def _proto_gen_impl(ctx):
+             arguments = args + import_flags + [s.path for s in srcs],
+             executable = ctx.executable.protoc,
+             mnemonic = "ProtoCompile",
++            tools = tools,
+             use_default_shell_env = True,
+         )
+ 
+@@ -262,6 +266,7 @@ def cc_proto_library(
+         hdrs = gen_hdrs,
+         deps = cc_libs + deps,
+         includes = includes,
++        alwayslink = 1,
+         **kargs
+     )
+ 
+@@ -271,8 +276,8 @@ def internal_gen_well_known_protos_java(srcs):
+     Args:
+       srcs: the well known protos
+     """
+-    root = Label("%s//protobuf_java" % (REPOSITORY_NAME)).workspace_root
+-    pkg = PACKAGE_NAME + "/" if PACKAGE_NAME else ""
++    root = Label("%s//protobuf_java" % (native.repository_name())).workspace_root
++    pkg = native.package_name() + "/" if native.package_name() else ""
+     if root == "":
+         include = " -I%ssrc " % pkg
+     else:
+diff --git a/third_party/systemlibs/syslibs_configure.bzl b/third_party/systemlibs/syslibs_configure.bzl
+index f83c0dd3d5f..6687874f397 100644
+--- a/third_party/systemlibs/syslibs_configure.bzl
++++ b/third_party/systemlibs/syslibs_configure.bzl
+@@ -43,7 +43,7 @@ VALID_LIBS = [
+     "swig",
+     "termcolor_archive",
+     "wrapt",
+-    "zlib_archive",
++    "zlib",
+ ]
+ 
+ def auto_configure_fail(msg):
