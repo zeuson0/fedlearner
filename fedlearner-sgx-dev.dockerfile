@@ -107,16 +107,18 @@ RUN pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/s
     && pip3 install --no-compile -r ${GRPC_PATH}/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # Tensorflow dependencies
-ENV BAZEL_VERSION=3.1.0
-ENV TF_VERSION=v2.4.2
+ENV BAZEL_VERSION=0.26.1
+ENV TF_VERSION=v1.15.5
 ENV TF_BUILD_PATH=/tf/src
 ENV TF_BUILD_OUTPUT=/tf/output
 
 RUN pip3 install --no-compile --upgrade pip -i https://mirrors.aliyun.com/pypi/simple/ \
-    && pip3 install --no-compile numpy keras_preprocessing -i https://mirrors.aliyun.com/pypi/simple/
+    && pip3 install --no-compile 'numpy<1.19.0' keras_preprocessing -i https://mirrors.aliyun.com/pypi/simple/
 
+RUN apt-get install -y bash-completion python
 RUN wget "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel_${BAZEL_VERSION}-linux-x86_64.deb" \
     && dpkg -i bazel_*.deb
+RUN rm -rf /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
 
 RUN git clone --recurse-submodules -b ${TF_VERSION} https://github.com/tensorflow/tensorflow ${TF_BUILD_PATH}
 
@@ -138,9 +140,11 @@ COPY sgx/tf ${TF_BUILD_PATH}
 RUN cd ${TF_BUILD_PATH} \
     && git apply sgx_tls_sample.diff
 
-ARG TF_BUILD_CFG="--config=numa --config=mkl --config=mkl_threadpool --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
+ARG TF_BUILD_CFG="--config=v1 --config=numa --config=mkl --copt=-march=native --copt=-O3 --cxxopt=-march=native --cxxopt=-O3 --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0"
 RUN cd ${TF_BUILD_PATH} \
-    && bazel build --local_ram_resources=2048 -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package \
+    && bazel build -c opt ${TF_BUILD_CFG} //tensorflow/tools/pip_package:build_pip_package
+
+RUN cd ${TF_BUILD_PATH} \
     && bazel-bin/tensorflow/tools/pip_package/build_pip_package ${TF_BUILD_OUTPUT}
 
 # Build and install fedlearner
@@ -187,7 +191,7 @@ RUN echo "exit 0" > /usr/sbin/policy-rc.d
 # For gramine ra-tls
 RUN dpkg --remove --force-depends libgtk2.0-0 \
     && pip3 uninstall -y numpy keras_preprocessing protobuf \
-    && pip3 install --no-compile numpy keras_preprocessing protobuf -i https://mirrors.aliyun.com/pypi/simple/
+    && pip3 install --no-compile 'numpy<1.19.0' keras_preprocessing protobuf -i https://mirrors.aliyun.com/pypi/simple/
 
 # Clean tmp files
 RUN apt-get clean all \
